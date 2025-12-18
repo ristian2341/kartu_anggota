@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as exl;
 
 class KartuAnggotaPage extends StatefulWidget {
   const KartuAnggotaPage({super.key});
@@ -17,8 +17,8 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
     final TextEditingController backgroundController = TextEditingController();
     final TextEditingController nomorController = TextEditingController();
     late AnimationController _controller;
-    List<List<String>> excelData = [];
-    
+    List<Map<String, String>> excelData = [];
+
     @override
     void initState() {
       super.initState();
@@ -60,10 +60,11 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Generate Kartu Anggota'),
-        backgroundColor: Colors.green.shade500,
+        backgroundColor: Colors.green,
       ),
       body: AnimatedBuilder(
         animation: _controller,
@@ -90,7 +91,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: _formContent(),
+                child: _formContent(screenHeight),
               ),
             ),
           );
@@ -99,81 +100,119 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
     );
   }
 
-  Widget _formContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: backgroundController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Background',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: _pickBackground,
+    Widget _formContent(screenHeight) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ===== FORM ATAS (TETAP) =====
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              border: Border.all(color: Colors.black38, width: 1.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: backgroundController,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      labelText: 'Background',
+                      filled: true,
+                      fillColor: Colors.white54,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.folder_open),
+                        onPressed: _pickBackground,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: TextField(
-                controller: nomorController,
-                decoration: const InputDecoration(
-                  labelText: 'Format Nomor',
+                const SizedBox(width: 20),
+                Expanded(
+                  child: TextField(
+                    controller: nomorController,
+                    decoration: InputDecoration(
+                      labelText: 'Format Nomor',
+                      filled: true,
+                      fillColor: Colors.white54,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: _simpanData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 18,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Simpan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 20),
-            ElevatedButton(
-              onPressed: _simpanData,
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 30),
-        Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton.icon(
-              onPressed: _uploadExcel,
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Upload Excel'),
-            ),
-        ),
-    const SizedBox(height: 20),
-    // ===== TABLE =====
-    Expanded(
-      child: excelData.isEmpty
-          ? const Center(
-          child: Text(
-          'Belum ada data Excel',
-          style: TextStyle(color: Colors.white),
-        ),
-      ): SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-          child: DataTable(
-          columns: const [
-            DataColumn(label: Text('No')),
-            DataColumn(label: Text('Nama')),
-            DataColumn(label: Text('Alamat')),
-          ],
-          rows: excelData.map((e) {
-            return DataRow(cells: [
-            DataCell(Text(e['no'])),
-            DataCell(Text(e['nama'])),
-            DataCell(Text(e['alamat'])),
-            ]);
-          }).toList(),
-        ),
-        ),
-      ],
-    );
-  }
+          ),
 
-  Future<void> _pickBackground() async {
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              border: Border.all(color: Colors.white54),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // ===== BUTTON UPLOAD =====
+                    ElevatedButton.icon(
+                      onPressed: _uploadExcel,
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Upload Excel'),
+                    ),
+
+                    const SizedBox(width: 12), // jarak antar tombol
+
+                    // ===== BUTTON GENERATE PDF =====
+                    ElevatedButton.icon(
+                      onPressed: _genratePdf, // fungsi untuk generate PDF
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('Generate PDF'),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+                _tableHeader(),
+                _tableBody(screenHeight),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    Future<void> _pickBackground() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       allowMultiple: false,
@@ -196,9 +235,9 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
 
     final file = File(result.files.single.path!);
     final bytes = file.readAsBytesSync();
-    final excel = Excel.decodeBytes(bytes);
+    final excel = exl.Excel.decodeBytes(bytes);
 
-    List<Map<String, dynamic>> temp = [];
+    List<Map<String, String>> temp = [];
 
     for (var table in excel.tables.keys) {
       final sheet = excel.tables[table]!;
@@ -208,7 +247,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
         temp.add({
           'no': row[0]?.value?.toString() ?? '',
           'nama': row[1]?.value?.toString() ?? '',
-          'alamat': row[2]?.value?.toString() ?? '',
+          'no_anggota': row[2]?.value?.toString() ?? '',
         });
       }
     }
@@ -216,5 +255,125 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage>
     setState(() {
       excelData = temp;
     });
+  }
+
+  Widget _tableHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.green.shade700,
+        border: const Border(
+          bottom: BorderSide(color: Colors.white54),
+        ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(8),
+        ),
+      ),
+      child: Row(
+        children: const [
+          _HeaderCell(text: 'No', flex: 1),
+          _HeaderCell(text: 'Nama', flex: 3),
+          _HeaderCell(text: 'Nomor Anggota', flex: 3, isLast: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableBody(double screenHeight) {
+
+    return SizedBox(
+      height: screenHeight * 0.69,
+      child: ListView.builder(
+        itemCount: excelData.length,
+        itemBuilder: (context, index) {
+          final e = excelData[index];
+          return Container(
+            decoration: BoxDecoration(
+              color: index.isEven
+                  ? Colors.green.shade50
+                  : Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Colors.white54),
+              ),
+            ),
+            child: Row(
+              children: [
+                _BodyCell(text: e['no'] ?? '', flex: 1),
+                _BodyCell(text: e['nama'] ?? '', flex: 3),
+                _BodyCell(text: '${nomorController.text}-${e['no_anggota'] ?? ''}', flex: 3, isLast: true),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _uploadExcel() async {
+
+  }
+
+}
+
+class _HeaderCell extends StatelessWidget {
+  final String text;
+  final int flex;
+  final bool isLast;
+
+  const _HeaderCell({
+    required this.text,
+    required this.flex,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border(
+            right: isLast
+                ? BorderSide.none
+                : const BorderSide(color: Colors.white54),
+          ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyCell extends StatelessWidget {
+  final String text;
+  final int flex;
+  final bool isLast;
+
+  const _BodyCell({
+    required this.text,
+    required this.flex,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border(
+            right: isLast
+                ? BorderSide.none
+                : const BorderSide(color: Colors.white54),
+          ),
+        ),
+        child: Text(text),
+      ),
+    );
   }
 }
