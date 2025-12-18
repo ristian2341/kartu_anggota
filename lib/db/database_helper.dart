@@ -17,52 +17,52 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDB,
+    );
   }
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE setting (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        background TEXT NULL,
-        format_nomor TEXT NULL 
+        background TEXT,
+        format_nomor TEXT
       )
     ''');
   }
 
-  // Insert data
-  Future<int> insertItem(String background, String format_nomor) async {
-    final db = await instance.database;
-    return await db.insert('items', {
-      'background': background,
-      'format_nomor': format_nomor,
-    });
+  // 🔹 CEK DATA
+  Future<List<Map<String, dynamic>>> getSetting() async {
+    final db = await database;
+    return await db.query('setting', limit: 1);
   }
 
-  // Get all data
-  Future<List<Map<String, dynamic>>> getItems() async {
-    final db = await instance.database;
-    return await db.query('items');
-  }
+  // 🔹 INSERT / UPDATE (UPSERT)
+  Future<void> saveSetting(String background, String formatNomor) async {
+    final db = await database;
+    final data = await getSetting();
 
-  // Update
-  Future<int> updateItem(
-    int id,
-    String background,
-    String format_number,
-  ) async {
-    final db = await instance.database;
-    return await db.update(
-      'items',
-      {'background': background, 'format_number': format_number},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  // Delete
-  Future<int> deleteItem(int id) async {
-    final db = await instance.database;
-    return await db.delete('items', where: 'id = ?', whereArgs: [id]);
+    if (data.isEmpty) {
+      // INSERT
+      await db.insert('setting', {
+        'background': background,
+        'format_nomor': formatNomor,
+      });
+    } else {
+      // UPDATE
+      await db.update(
+        'setting',
+        {
+          'background': background,
+          'format_nomor': formatNomor,
+        },
+        where: 'id = ?',
+        whereArgs: [data.first['id']],
+      );
+    }
   }
 }
