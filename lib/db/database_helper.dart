@@ -16,8 +16,8 @@ class DatabaseHelper {
 
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
-
+    final path = join(dbPath, 'app_anggota.db');
+    print(path);
     return await openDatabase(
       path,
       version: 1,
@@ -30,7 +30,8 @@ class DatabaseHelper {
       CREATE TABLE setting (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         background TEXT,
-        format_nomor TEXT
+        format_nomor TEXT,
+        file_generate TEXT
       )
     ''');
   }
@@ -42,7 +43,7 @@ class DatabaseHelper {
   }
 
   // 🔹 INSERT / UPDATE (UPSERT)
-  Future<void> saveSetting(String background, String formatNomor) async {
+  Future<void> saveSetting(String background, String formatNomor, String fileGenerate) async {
     final db = await database;
     final data = await getSetting();
 
@@ -51,6 +52,7 @@ class DatabaseHelper {
       await db.insert('setting', {
         'background': background,
         'format_nomor': formatNomor,
+        'file_generate': fileGenerate,
       });
     } else {
       // UPDATE
@@ -59,6 +61,7 @@ class DatabaseHelper {
         {
           'background': background,
           'format_nomor': formatNomor,
+          'file_generate': fileGenerate
         },
         where: 'id = ?',
         whereArgs: [data.first['id']],
