@@ -403,18 +403,31 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
           child: Row(
             children: [
               _BodyCell(text: e['no'] ?? '', flex: 1),
-              _BodyCell(text: e['nama'] ?? '', flex: 3),
+              _BodyCell(text: e['nama'] ?? '', flex: 4),
               _BodyCell(
                 text: '${nomorController.text}-${e['no_anggota'] ?? ''}',
                 flex: 3,
-                isLast: true,
               ),
-              SizedBox(
-                width: 48, // atau 56
-                child: IconButton(
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                  onPressed: () => _generateSinglePdf(e),
-                ),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide.none,
+                      bottom: const BorderSide(color: Colors.black26),
+                    ),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.red,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _generateSinglePdf(e),
+                  ),
+                )
               ),
             ],
           ),
@@ -424,190 +437,152 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
   }
 
   Future<void> _generatePdf() async {
-      // cek lokasi simpan file jika kosong ///
-    if(filegenerateController.text.isEmpty){
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return AlertDialog(
-            backgroundColor: Colors.red.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            title: Row(
-              children: const [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 8),
-                Text(
-                  'Gagal',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            content: const Text(
-              'Lokasi Generate tidak boleh kosong',
-              style: TextStyle(color: Colors.black),
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text(
-                  'OK',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
+
+    // ===== VALIDASI (PUNYA KAMU, TETAP) =====
+    if (filegenerateController.text.isEmpty) {
+      // dialog gagal
       return;
     }
 
-    // === VALIDASI DATA ===
     if (excelData.isEmpty) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return AlertDialog(
-            backgroundColor: Colors.red.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            title: Row(
-              children: const [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 8),
-                Text(
-                  'Gagal',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            content: const Text(
-              'Data kosong, Generate PDF Kartu Anggota gagal',
-              style: TextStyle(color: Colors.black),
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text(
-                  'OK',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-
+      // dialog gagal
       return;
     }
 
+    // 🔵 TAMPILKAN SPINNER
+    showLoading(context);
 
-    // === KARTU SIZE (CR80) ===
-    final cardSize = PdfPageFormat(
-      85.6 * PdfPageFormat.mm,
-      54 * PdfPageFormat.mm,
-    );
+    try {
+      // === KARTU SIZE (CR80) ===
+      final cardSize = PdfPageFormat(
+        85.6 * PdfPageFormat.mm,
+        54 * PdfPageFormat.mm,
+      );
 
-    // === BACKGROUND DARI TEXT CONTROLLER ===
-    final bgImage = backgroundFromFilePath(backgroundController.text);
+      final bgImage =
+      backgroundFromFilePath(backgroundController.text);
 
-    for(final e in excelData){
-      final String nama = e['nama'] ?? '';
-      final String idAnggota ='${nomorController.text}-${e['no_anggota'] ?? ''}';
+      for (final e in excelData) {
+        final String nama = e['nama'] ?? '';
+        final String idAnggota = e['no_anggota'] ?? '';
 
-      // generate to pdr berdasarkan id anggota //
-      // 🔴 WAJIB: Document baru setiap anggota
-      final pdf = pw.Document();
+        final pdf = pw.Document();
 
-      pdf.addPage(
-        pw.Page(
-          pageFormat: cardSize,
-          margin: pw.EdgeInsets.zero,
-          build: (context) {
-            return pw.Stack(
-              children: [
-                pw.Positioned.fill(
-                  child: pw.Image(bgImage, fit: pw.BoxFit.cover),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(8),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        nama,
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.Divider(),
-                      pw.Text(
-                        idAnggota,
-                        style: pw.TextStyle(
-                          fontSize: 9,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.SizedBox(height: 6),
-                      pw.BarcodeWidget(
-                        barcode: pw.Barcode.code128(),
-                        data: idAnggota, // 🔥 pakai idAnggota
-                        width: 120,
-                        height: 30,
-                      ),
-                    ],
+        pdf.addPage(
+          pw.Page(
+            pageFormat: cardSize,
+            margin: pw.EdgeInsets.zero,
+            build: (context) {
+              return pw.Stack(
+                children: [
+                  pw.Positioned.fill(
+                    child: pw.Image(bgImage, fit: pw.BoxFit.cover),
                   ),
-                ),
-              ],
-            );
-          },
+                  pw.Positioned(
+                    top: 47,
+                    left: 0,
+                    right: 0,
+                    child: pw.Center(
+                      child: pw.Text(
+                        nama.toUpperCase(),
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  pw.Positioned(
+                    top: 67,
+                    left: 0,
+                    right: 0,
+                    child: pw.Center(
+                      child: pw.Text(
+                        nomorController.text+'-'+idAnggota,
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // === BARCODE ===
+                  pw.Positioned(
+                    top: 85,
+                    left: 60,
+                    right: 60, // 🔑 batasi lebar barcode
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.white,
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.BarcodeWidget(
+                        barcode: pw.Barcode.code39(),
+                        data: idAnggota,
+                        drawText: false,
+                        height: 28, // 🔑 kontrol tinggi
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+
+        final String dirPath = filegenerateController.text;
+        final file = File('$dirPath/$idAnggota.pdf');
+        await file.writeAsBytes(await pdf.save());
+      }
+
+      // 🟢 TUTUP SPINNER
+      hideLoading(context);
+
+      // OPTIONAL: dialog sukses
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Sukses'),
+          content: const Text('PDF berhasil digenerate'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
 
-      // SIMPAN FILE PER ANGGOTA
-      final String dirPath = filegenerateController.text;
-      final file = File('$dirPath/$idAnggota.pdf');
+    } catch (e) {
+      // 🔴 TUTUP SPINNER JIKA ERROR
+      hideLoading(context);
 
-      await file.writeAsBytes(await pdf.save());
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(e.toString()),
+        ),
+      );
     }
+  }
+
+  void showLoading(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  void hideLoading(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
   }
 
   // Rename this function to _pickDirectory as it's more accurate now
@@ -664,7 +639,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
     }
 
     String nama = e['nama'] ?? '';
-    String idAnggota = '${nomorController.text}-${e['no_anggota'] ?? ''}';
+    String idAnggota = e['no_anggota'] ?? '';
 
     // === KARTU SIZE (CR80) ===
     final cardSize = PdfPageFormat(
@@ -690,7 +665,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
 
               // === NAMA ===
               pw.Positioned(
-                top: 49,   // 🔧 sesuaikan angka ini
+                top: 47,   // 🔧 sesuaikan angka ini
                 left: 0,
                 right: 0,
                 child: pw.Center(
@@ -706,12 +681,12 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
 
               // === ID ANGGOTA ===
               pw.Positioned(
-                top: 65, // 🔧 geser naik/turun
+                top: 67, // 🔧 geser naik/turun
                 left: 0,
                 right: 0,
                 child: pw.Center(
                   child: pw.Text(
-                    idAnggota,
+                    nomorController.text+'-'+idAnggota,
                     style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
@@ -722,13 +697,24 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
 
               // === BARCODE ===
               pw.Positioned(
-                top: 90, // 🔧 naik/turun
-                left: 20,
-                right: 20,
-                child: pw.BarcodeWidget(
-                  barcode: pw.Barcode.code128(),
-                  data: idAnggota,
-                  height: 24,
+                top: 85,
+                left: 60,
+                right: 60, // 🔑 batasi lebar barcode
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.white,
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.BarcodeWidget(
+                    barcode: pw.Barcode.code39(),
+                    data: idAnggota,
+                    drawText: false,
+                    height: 28, // 🔑 kontrol tinggi
+                  ),
                 ),
               ),
             ],
@@ -736,7 +722,9 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
         },
       ),
     );
+
     // SIMPAN FILE PER ANGGOTA
+
     final String dirPath = filegenerateController.text;
     final file = File('$dirPath/$idAnggota.pdf');
 
