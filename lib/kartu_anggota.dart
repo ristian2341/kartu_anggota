@@ -118,6 +118,12 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
       appBar: AppBar(
         title: const Text('Generate Kartu Anggota'),
         backgroundColor: Colors.green,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: Colors.green.shade900, // warna border
+            width: 2, // tebal border
+          ),
+        ),
       ),
       body: AnimatedBuilder(
         animation: _controller,
@@ -130,8 +136,8 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
                   end: Alignment.bottomRight,
                   colors: [
                     Color.lerp(
-                      Colors.green.shade300,
-                      Colors.green.shade500,
+                      Colors.blue.shade300,
+                      Colors.blueGrey.shade500,
                       _controller.value,
                     )!,
                     Color.lerp(
@@ -222,7 +228,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
               ElevatedButton(
                 onPressed: _simpanData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
+                  backgroundColor: Colors.red.shade600,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 18,
@@ -244,6 +250,7 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
         ),
 
         const SizedBox(height: 5),
+        Expanded(child:
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -273,13 +280,15 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
               _tableHeader(),
-              _tableBody(screenHeight),
+              Expanded(
+                child: _tableBody(),
+              ),
             ],
           ),
         ),
+        )
       ],
     );
   }
@@ -300,33 +309,58 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
   Future<void> _uploadExcel() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls'],
+      allowedExtensions: ['xlsx', 'xls', 'csv'],
     );
 
     if (result == null || result.files.single.path == null) return;
 
     final file = File(result.files.single.path!);
-    final bytes = file.readAsBytesSync();
-    final excel = exl.Excel.decodeBytes(bytes);
+    final ext = file.path.split('.').last.toLowerCase();
 
     List<Map<String, String>> temp = [];
 
-    for (var table in excel.tables.keys) {
-      final sheet = excel.tables[table]!;
-      for (int i = 1; i < sheet.rows.length; i++) {
-        final row = sheet.rows[i];
+    if (ext == 'csv') {
+      final content = await file.readAsString();
+      final lines = content.split(RegExp(r'\r?\n'));
+      final delimiter = lines.first.contains(';') ? ';' : ',';
+      for (int i = 1; i < lines.length; i++) {
+        if (lines[i].trim().isEmpty) continue;
+
+        final cols = lines[i].split(delimiter);
 
         temp.add({
-          'no': row[0]?.value?.toString() ?? '',
-          'nama': row[1]?.value?.toString() ?? '',
-          'no_anggota': row[2]?.value?.toString() ?? '',
+          'no': cols.length > 0 ? cols[0].trim() : '',
+          'nama': cols.length > 1 ? cols[1].trim() : '',
+          'no_anggota': cols.length > 2 ? cols[2].trim() : '',
         });
+      }
+    } else {
+      final bytes = await file.readAsBytes();
+
+      final excel = exl.Excel.decodeBytes(bytes);
+
+      for (final table in excel.tables.keys) {
+        final sheet = excel.tables[table]!;
+        for (int i = 1; i < sheet.rows.length; i++) {
+          final row = sheet.rows[i];
+
+          temp.add({
+            'no': _cell(row, 0),
+            'nama': _cell(row, 1),
+            'no_anggota': _cell(row, 2),
+          });
+        }
       }
     }
 
     setState(() {
       excelData = temp;
     });
+  }
+
+  String _cell(List<exl.Data?> row, int index) {
+    if (index >= row.length || row[index] == null) return '';
+    return row[index]!.value?.toString().trim() ?? '';
   }
 
   Widget _tableHeader() {
@@ -344,55 +378,48 @@ class _KartuAnggotaPageState extends State<KartuAnggotaPage> with SingleTickerPr
       child: Row(
         children: const [
           _HeaderCell(text: 'No', flex: 1),
-          _HeaderCell(text: 'Nama', flex: 3),
-          _HeaderCell(text: 'Nomor Anggota', flex: 3, isLast: true),
+          _HeaderCell(text: 'Nama', flex: 4),
+          _HeaderCell(text: 'Nomor Anggota', flex: 3),
           _HeaderCell(text: 'Generate PDF', flex: 1, isLast: true),
         ],
       ),
     );
   }
 
-  Widget _tableBody(double screenHeight) {
-
-    return SizedBox(
-      height: screenHeight * 0.69,
-      child: ListView.builder(
-        itemCount: excelData.length,
-        itemBuilder: (context, index) {
-          final e = excelData[index];
-          return Container(
-            decoration: BoxDecoration(
-              color: index.isEven
-                  ? Colors.green.shade50
-                  : Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.white54),
+  Widget _tableBody() {
+    return ListView.builder(
+      itemCount: excelData.length,
+      itemBuilder: (context, index) {
+        final e = excelData[index];
+        return Container(
+          decoration: BoxDecoration(
+            color: index.isEven
+                ? Colors.green.shade50
+                : Colors.white,
+            border: const Border(
+              bottom: BorderSide(color: Colors.white54),
+            ),
+          ),
+          child: Row(
+            children: [
+              _BodyCell(text: e['no'] ?? '', flex: 1),
+              _BodyCell(text: e['nama'] ?? '', flex: 3),
+              _BodyCell(
+                text: '${nomorController.text}-${e['no_anggota'] ?? ''}',
+                flex: 3,
+                isLast: true,
               ),
-            ),
-            child: Row(
-              children: [
-                _BodyCell(text: e['no'] ?? '', flex: 1),
-                _BodyCell(text: e['nama'] ?? '', flex: 3),
-                _BodyCell(text: '${nomorController.text}-${e['no_anggota'] ?? ''}', flex: 3, isLast: true),
-                // === BUTTON EXPORT PDF ===
-                Expanded(
-                  flex: 1,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.picture_as_pdf,
-                      color: Colors.red,
-                    ),
-                    tooltip: 'Export PDF',
-                    onPressed: () {
-                      _generateSinglePdf(e);
-                    },
-                  ),
+              SizedBox(
+                width: 48, // atau 56
+                child: IconButton(
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  onPressed: () => _generateSinglePdf(e),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -771,7 +798,8 @@ class _BodyCell extends StatelessWidget {
           border: Border(
             right: isLast
                 ? BorderSide.none
-                : const BorderSide(color: Colors.white54),
+                : const BorderSide(color: Colors.black26),
+            bottom: const BorderSide(color: Colors.black26),
           ),
         ),
         child: Text(text),
